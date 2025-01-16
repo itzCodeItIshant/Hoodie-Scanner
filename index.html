@@ -11,14 +11,14 @@
     <div class="container">
         <h1>Hoodie Text Scanner</h1>
         <video id="video" width="100%" height="auto" autoplay></video> <!-- Video element to display camera feed -->
-        <input type="file" id="image-upload" accept="image/*">
-        <button id="scan-button">Scan and Redirect</button>
+        <button id="scan-button" onclick="scanImage()" disabled>Scan and Redirect</button>
         <div id="result-container">
-            <p id="recognition-result">Upload an image of the hoodie to start scanning.</p>
+            <p id="recognition-result">Camera is ready, scan your hoodie to start.</p>
         </div>
 
         <!-- Hidden option for selecting between the two Atharv names -->
         <div id="atharv-options" class="hidden">
+            <p id="atharv-choice-text">Choose your name:</p>
             <button id="atharv-malve" onclick="redirectToAtharv('malve')">Atharv Malve</button>
             <button id="atharv-mane" onclick="redirectToAtharv('mane')">Atharv Mane</button>
         </div>

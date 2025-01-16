@@ -1,6 +1,3 @@
-document.getElementById('image-upload').addEventListener('change', handleImageUpload);
-document.getElementById('scan-button').addEventListener('click', scanImage);
-
 let memberNames = {
     "Ishant": "https://instagram.com/ishant.1912",
     "Nitesh": "https://www.instagram.com/niteshlaljani/",
@@ -11,26 +8,49 @@ let memberNames = {
     "Atharv Mane": "https://www.instagram.com/thepasswordspoiler/",
 };
 
-let imageToScan = null;
-
 let videoElement = document.getElementById('video');
 let currentStream = null;
 let currentFacingMode = "user"; // Initially use front camera (user)
 
-function handleImageUpload(event) {
-    imageToScan = event.target.files[0];
-    document.getElementById('scan-button').disabled = false;
-    document.getElementById('recognition-result').textContent = "Ready to scan!";
-    document.getElementById('atharv-options').classList.add('hidden');  // Hide options initially
+function setUpCamera() {
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase());
+    let constraints = {
+        video: {
+            facingMode: isMobile ? "environment" : currentFacingMode // "environment" for back camera on mobile, front camera (user) on desktop
+        }
+    };
+
+    // Stop previous stream if any
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+
+    // Request camera access
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+            currentStream = stream;
+            videoElement.srcObject = stream;
+            document.getElementById('scan-button').disabled = false; // Enable scan button once camera is ready
+        })
+        .catch((err) => {
+            console.error("Error accessing the camera: ", err);
+            document.getElementById('recognition-result').textContent = "Unable to access camera.";
+        });
 }
 
 function scanImage() {
-    if (!imageToScan) return;
+    document.getElementById('recognition-result').textContent = "Scanning... Please wait.";
 
-    document.getElementById('recognition-result').textContent = "Scanning image...";
+    // Create a canvas to capture the current video frame
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+    context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
+    // Get the image data and pass it to Tesseract.js for OCR
     Tesseract.recognize(
-        imageToScan,
+        canvas.toDataURL(),
         'eng',
         {
             logger: (m) => console.log(m)
@@ -59,32 +79,6 @@ function redirectToAtharv(choice) {
     } else {
         alert("Something went wrong!");
     }
-}
-
-// Detect device platform and set up the camera accordingly
-function setUpCamera() {
-    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase());
-    let constraints = {
-        video: {
-            facingMode: isMobile ? "environment" : currentFacingMode // "environment" for back camera on mobile, front camera (user) on desktop
-        }
-    };
-
-    // Stop previous stream if any
-    if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-    }
-
-    // Request camera access
-    navigator.mediaDevices.getUserMedia(constraints)
-        .then((stream) => {
-            currentStream = stream;
-            videoElement.srcObject = stream;
-        })
-        .catch((err) => {
-            console.error("Error accessing the camera: ", err);
-            document.getElementById('recognition-result').textContent = "Unable to access camera.";
-        });
 }
 
 // Call the function to set up the camera initially
