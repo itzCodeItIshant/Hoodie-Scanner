@@ -67,26 +67,26 @@
             navigator.mediaDevices.enumerateDevices()
                 .then(devices => {
                     let videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    console.log("Available video devices:", videoDevices); // Log all video devices
+        
                     let selectedDeviceId = null;
-    
-                    if (isMobile()) {
-                        // For mobile devices, prefer back camera (device facing)
-                        selectedDeviceId = videoDevices.find(device => device.label.toLowerCase().includes('back'))?.deviceId;
-                    } else {
-                        // For desktop, prefer front camera
-                        selectedDeviceId = videoDevices.find(device => device.label.toLowerCase().includes('front'))?.deviceId;
+        
+                    // Desktop: Select the first available video device (no front/back distinction)
+                    if (videoDevices.length > 0) {
+                        selectedDeviceId = videoDevices[0].deviceId; // Select the first available camera
                     }
-    
+        
                     if (selectedDeviceId) {
                         navigator.mediaDevices.getUserMedia({
                             video: { deviceId: selectedDeviceId }
                         })
                         .then(stream => {
                             video.srcObject = stream;
+                            status.textContent = "Camera activated successfully.";
                         })
                         .catch(error => {
                             status.textContent = "Unable to access camera. Please check permissions.";
-                            console.error(error);
+                            console.error("Error accessing camera:", error);
                         });
                     } else {
                         status.textContent = "No suitable camera found.";
@@ -94,11 +94,29 @@
                 })
                 .catch(error => {
                     status.textContent = "Error accessing devices.";
-                    console.error(error);
+                    console.error("Error enumerating devices:", error);
                 });
         }
-    
-        // Initialize the camera based on the device
+        
+        function requestCameraPermission() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    // If permission is granted, stop the stream immediately
+                    stream.getTracks().forEach(track => track.stop());
+                    chooseCamera(); // Proceed with selecting the camera
+                })
+                .catch(error => {
+                    status.textContent = "Camera permission is required.";
+                    console.error("Camera permission error:", error);
+                });
+        }
+        
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            requestCameraPermission(); // Request camera permission on load
+        } else {
+            status.textContent = "Camera not supported in this browser.";
+        }
+        
         chooseCamera();
     
         document.getElementById("captureButton").addEventListener("click", () => {
