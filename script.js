@@ -1,93 +1,97 @@
-// Mapping names to URLs
-const nameToURL = {
+document.getElementById('image-upload').addEventListener('change', handleImageUpload);
+document.getElementById('scan-button').addEventListener('click', scanImage);
+
+let memberNames = {
     "Ishant": "https://instagram.com/ishant.1912",
     "Nitesh": "https://www.instagram.com/niteshlaljani/",
     "bhagyashree": "https://www.instagram.com/reebharate/",
     "UNO": "https://www.instagram.com/ishant.1912/",
     "factor": "https://www.instagram.com/ishant.1912/",
-    // Add all 28 members here
+    "Atharv Malve": "https://www.instagram.com/atharvmalve/",
+    "Atharv Mane": "https://www.instagram.com/thepasswordspoiler/",
 };
 
-const fallbackURL = "https://instagram.com/gdgcsspu"; // Redirect if repeated errors occur
-let errorCount = 0; // Track consecutive errors
-const maxErrors = 5; // Maximum allowed consecutive errors before redirecting
-const video = document.getElementById('camera');
-const status = document.getElementById('status');
+let imageToScan = null;
 
-// Access the device camera
-navigator.mediaDevices.getUserMedia({ video: true })
-    .then((stream) => {
-        video.srcObject = stream;
-    })
-    .catch((err) => {
-        status.textContent = "Unable to access camera. Please check permissions.";
+let videoElement = document.getElementById('video');
+let currentStream = null;
+let currentFacingMode = "user"; // Initially use front camera (user)
+
+function handleImageUpload(event) {
+    imageToScan = event.target.files[0];
+    document.getElementById('scan-button').disabled = false;
+    document.getElementById('recognition-result').textContent = "Ready to scan!";
+    document.getElementById('atharv-options').classList.add('hidden');  // Hide options initially
+}
+
+function scanImage() {
+    if (!imageToScan) return;
+
+    document.getElementById('recognition-result').textContent = "Scanning image...";
+
+    Tesseract.recognize(
+        imageToScan,
+        'eng',
+        {
+            logger: (m) => console.log(m)
+        }
+    ).then(({ data: { text } }) => {
+        let recognizedName = text.trim();
+        document.getElementById('recognition-result').textContent = "Recognized: " + recognizedName;
+
+        if (recognizedName === "Atharv") {
+            document.getElementById('atharv-options').classList.remove('hidden');
+        } else if (memberNames[recognizedName]) {
+            window.location.href = memberNames[recognizedName];
+        } else {
+            document.getElementById('recognition-result').textContent += " (No match found)";
+        }
+    }).catch(err => {
         console.error(err);
-    });
-
-document.getElementById('captureButton').addEventListener('click', () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    status.textContent = "Processing the image...";
-
-    // Process the captured frame
-    Tesseract.recognize(canvas.toDataURL(), 'eng', { logger: (info) => console.log(info) })
-        .then(({ data: { text } }) => {
-            const extractedText = text.toLowerCase();
-            console.log('Extracted Text:', extractedText);
-
-            // Check if the extracted text matches any name
-            let matchedURL = null;
-            for (const [name, url] of Object.entries(nameToURL)) {
-                if (extractedText.includes(name.toLowerCase())) {
-                    matchedURL = url;
-                    break;
-                }
-            }
-
-            // If name is found, redirect to the corresponding URL
-            if (matchedURL) {
-                errorCount = 0; // Reset error count on success
-                status.textContent = `Name found! Redirecting...`;
-                window.location.href = matchedURL;
-            } else if (extractedText.includes("atharv")) {
-                // If "Atharv" is detected, show the name choice
-                showAtharvChoice();
-            } else {
-                errorCount++;
-                status.textContent = `Name not found (${errorCount}/${maxErrors}). Try again.`;
-                if (errorCount >= maxErrors) {
-                    status.textContent = "Too many errors. Redirecting to Instagram page...";
-                    window.location.href = fallbackURL;
-                }
-            }
-        })
-        .catch((err) => {
-            errorCount++;
-            status.textContent = `Error processing the image (${errorCount}/${maxErrors}). Try again.`;
-            console.error(err);
-            if (errorCount >= maxErrors) {
-                status.textContent = "Too many errors. Redirecting to Instagram page...";
-                window.location.href = fallbackURL;
-            }
-        });
-});
-
-// Show the name choice options if "Atharv" is detected
-function showAtharvChoice() {
-    document.getElementById('nameChoice').style.display = 'block';
-
-    // Handle the user selection
-    document.getElementById('atharvMalve').addEventListener('click', () => {
-        status.textContent = "Redirecting to Atharv Malve's page...";
-        window.location.href = "https://www.instagram.com/atharvmalve/";
-    });
-
-    document.getElementById('atharvMane').addEventListener('click', () => {
-        status.textContent = "Redirecting to Atharv Mane's page...";
-        window.location.href = "https://www.instagram.com/thepasswordspoiler/";
+        document.getElementById('recognition-result').textContent = "Error during scanning!";
     });
 }
+
+function redirectToAtharv(choice) {
+    let url = memberNames[`Atharv ${choice.charAt(0).toUpperCase() + choice.slice(1)}`];
+    if (url) {
+        window.location.href = url;
+    } else {
+        alert("Something went wrong!");
+    }
+}
+
+// Detect device platform and set up the camera accordingly
+function setUpCamera() {
+    const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase());
+    let constraints = {
+        video: {
+            facingMode: isMobile ? "environment" : currentFacingMode // "environment" for back camera on mobile, front camera (user) on desktop
+        }
+    };
+
+    // Stop previous stream if any
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+
+    // Request camera access
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+            currentStream = stream;
+            videoElement.srcObject = stream;
+        })
+        .catch((err) => {
+            console.error("Error accessing the camera: ", err);
+            document.getElementById('recognition-result').textContent = "Unable to access camera.";
+        });
+}
+
+// Function to switch between front and back camera
+function switchCamera() {
+    currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; // Toggle between user and environment
+    setUpCamera(); // Reinitialize the camera with the new facingMode
+}
+
+// Call the function to set up the camera initially
+setUpCamera();

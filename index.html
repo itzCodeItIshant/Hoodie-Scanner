@@ -3,23 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self'">
-    <title>Hoodie Scanner</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Hoodie Text Scanner</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
-    <h1>Hoodie Scanner</h1>
-    <video id="camera" autoplay></video>
-    <button id="captureButton">Scan</button>
-    <p id="status">Point your camera at the hoodie and press "Scan".</p>
+    <div class="container">
+        <h1>Hoodie Text Scanner</h1>
+        <video id="video" width="100%" height="auto" autoplay></video> <!-- Video element to display camera feed -->
+        <input type="file" id="image-upload" accept="image/*">
+        <button id="scan-button" disabled>Scan and Redirect</button>
+        <div id="result-container">
+            <p id="recognition-result">Upload an image of the hoodie to start scanning.</p>
+        </div>
+        
+        <!-- Button to switch camera -->
+        <button id="switch-camera-button" onclick="switchCamera()">Switch Camera</button>
 
-    <!-- Hidden div for name choice -->
-    <div id="nameChoice">
-        <button id="atharvMalve">Atharv Malve</button>
-        <button id="atharvMane">Atharv Mane</button>
+        <!-- Hidden option for selecting between the two Atharv names -->
+        <div id="atharv-options" class="hidden">
+            <p id="atharv-choice-text">Choose your name:</p>
+            <button id="atharv-malve" onclick="redirectToAtharv('malve')">Atharv Malve</button>
+            <button id="atharv-mane" onclick="redirectToAtharv('mane')">Atharv Mane</button>
+        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
