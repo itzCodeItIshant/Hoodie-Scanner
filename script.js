@@ -3,6 +3,8 @@ const nameToURL = {
     "Ishant": "https://instagram.com/ishant.1912",
     "Nitesh": "https://www.instagram.com/niteshlaljani/",
     "bhagyashree": "https://www.instagram.com/reebharate/",
+    "UNO": "https://www.instagram.com/ishant.1912/",
+    "factor": "https://www.instagram.com/ishant.1912/",
     // Add all 28 members here
 };
 
