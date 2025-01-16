@@ -61,11 +61,14 @@ function scanImage() {
         let recognizedText = text.trim().toLowerCase(); // Make the text lowercase for easier matching
         document.getElementById('recognition-result').textContent = "Recognized: " + recognizedText;
 
-        // Check if any keyword (member name) is found in the recognized text
+        // Variable to track if we find a match with 90% similarity
         let foundMatch = false;
+
+        // Check for fuzzy matches with a threshold of 0.9 (90% similarity)
         for (let keyword of keywords) {
-            if (recognizedText.includes(keyword.toLowerCase())) { // Case insensitive match
-                document.getElementById('recognition-result').textContent = `Recognized: ${keyword}`;
+            let similarity = stringSimilarity.compareTwoStrings(recognizedText, keyword.toLowerCase());
+            if (similarity >= 0.9) { // If similarity is 90% or more
+                document.getElementById('recognition-result').textContent = `Recognized: ${keyword} (Match: ${Math.round(similarity * 100)}%)`;
                 window.location.href = memberNames[keyword]; // Redirect to the member's URL
                 foundMatch = true;
                 break; // Stop checking once a match is found
