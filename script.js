@@ -8,6 +8,8 @@ let memberNames = {
     "Atharv Mane": "https://www.instagram.com/thepasswordspoiler/",
 };
 
+let keywords = Object.keys(memberNames); // Extract member names as keywords for matching
+
 let videoElement = document.getElementById('video');
 let currentStream = null;
 let currentFacingMode = "user"; // Initially use front camera (user)
@@ -56,14 +58,26 @@ function scanImage() {
             logger: (m) => console.log(m)
         }
     ).then(({ data: { text } }) => {
-        let recognizedName = text.trim();
-        document.getElementById('recognition-result').textContent = "Recognized: " + recognizedName;
+        let recognizedText = text.trim().toLowerCase(); // Make the text lowercase for easier matching
+        document.getElementById('recognition-result').textContent = "Recognized: " + recognizedText;
 
-        if (recognizedName === "Atharv") {
+        // Check if any keyword (member name) is found in the recognized text
+        let foundMatch = false;
+        for (let keyword of keywords) {
+            if (recognizedText.includes(keyword.toLowerCase())) { // Case insensitive match
+                document.getElementById('recognition-result').textContent = `Recognized: ${keyword}`;
+                window.location.href = memberNames[keyword]; // Redirect to the member's URL
+                foundMatch = true;
+                break; // Stop checking once a match is found
+            }
+        }
+
+        // If "Atharv" is found but we need further clarification
+        if (recognizedText.includes("atharv") && !foundMatch) {
             document.getElementById('atharv-options').classList.remove('hidden');  // Show options if "Atharv" is recognized
-        } else if (memberNames[recognizedName]) {
-            window.location.href = memberNames[recognizedName];
-        } else {
+        }
+
+        if (!foundMatch && !recognizedText.includes("atharv")) {
             document.getElementById('recognition-result').textContent += " (No match found)";
         }
     }).catch(err => {
