@@ -3,79 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donkey Headed Person</title>
+    <title>Hoodie Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
         }
-        h1 {
-            color: #555;
-        }
-        #photo {
-            margin-top: 20px;
-            max-width: 100%;
+        video {
+            width: 100%;
+            max-width: 400px;
             border: 2px solid #ccc;
             border-radius: 10px;
+            margin-top: 20px;
         }
-        #captureBtn {
+        button {
             margin-top: 10px;
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
             cursor: pointer;
         }
-        #captureBtn:hover {
-            background-color: #218838;
+        p {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #555;
         }
     </style>
 </head>
 <body>
-    <h1>You Are a Donkey-Headed Person 🐴</h1>
-    <video id="camera" autoplay playsinline width="300" height="200"></video>
-    <br>
-    <button id="captureBtn">Capture Photo</button>
-    <br>
-    <canvas id="canvas" style="display:none;"></canvas>
-    <img id="photo" alt="Your Captured Image Will Appear Here">
+    <h1>Hoodie Scanner</h1>
+    <video id="camera" autoplay></video>
+    <button id="captureButton">Scan</button>
+    <p id="status">Point your camera at the hoodie and press "Scan".</p>
 
     <script>
-        const camera = document.getElementById('camera');
-        const canvas = document.getElementById('canvas');
-        const photo = document.getElementById('photo');
-        const captureBtn = document.getElementById('captureBtn');
+        // Mapping names to URLs
+        const nameToURL = {
+            "Ishant": "https://clubpage.com/ishant",
+            "Rahul": "https://clubpage.com/rahul",
+            "Priya": "https://clubpage.com/priya",
+            "UNO": "https://instagram.com/ishant.1912",
+            // Add all 28 members here
+        };
 
-        // Access the user's camera
+        const fallbackURL = "https://instagram.com/gdgcsspu"; // Redirect if repeated errors occur
+        let errorCount = 0; // Track consecutive errors
+        const maxErrors = 5; // Maximum allowed consecutive errors before redirecting
+        const video = document.getElementById('camera');
+        const status = document.getElementById('status');
+
+        // Access the device camera
         navigator.mediaDevices.getUserMedia({ video: true })
             .then((stream) => {
-                camera.srcObject = stream;
+                video.srcObject = stream;
             })
-            .catch((error) => {
-                console.error('Error accessing the camera:', error);
-                alert('Unable to access the camera. Please check your permissions.');
+            .catch((err) => {
+                status.textContent = "Unable to access camera. Please check permissions.";
+                console.error(err);
             });
 
-        // Capture photo
-        captureBtn.addEventListener('click', () => {
-            const context = canvas.getContext('2d');
-            canvas.width = camera.videoWidth;
-            canvas.height = camera.videoHeight;
-            context.drawImage(camera, 0, 0, canvas.width, canvas.height);
-            const imageData = canvas.toDataURL('image/png');
-            photo.src = imageData;
-        });
+        document.getElementById('captureButton').addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // Stop camera when the page is refreshed or closed
-        window.addEventListener('beforeunload', () => {
-            const stream = camera.srcObject;
-            if (stream) {
-                const tracks = stream.getTracks();
-                tracks.forEach((track) => track.stop());
-            }
+            status.textContent = "Processing the image...";
+            
+            // Process the captured frame
+            Tesseract.recognize(canvas.toDataURL(), 'eng', { logger: (info) => console.log(info) })
+                .then(({ data: { text } }) => {
+                    const extractedText = text.toLowerCase(); // Convert to lowercase for case-insensitive matching
+                    console.log('Extracted Text:', extractedText);
+
+                    // Check if any name exists in the extracted text
+                    let matchedURL = null;
+                    for (const [name, url] of Object.entries(nameToURL)) {
+                        if (extractedText.includes(name.toLowerCase())) {
+                            matchedURL = url;
+                            break;
+                        }
+                    }
+
+                    if (matchedURL) {
+                        errorCount = 0; // Reset error count on success
+                        status.textContent = `Name found! Redirecting...`;
+                        window.location.href = matchedURL;
+                    } else {
+                        errorCount++;
+                        status.textContent = `Name not found (${errorCount}/${maxErrors}). Try again.`;
+                        if (errorCount >= maxErrors) {
+                            status.textContent = "Too many errors. Redirecting to Instagram page...";
+                            window.location.href = fallbackURL;
+                        }
+                    }
+                })
+                .catch((err) => {
+                    errorCount++;
+                    status.textContent = `Error processing the image (${errorCount}/${maxErrors}). Try again.`;
+                    console.error(err);
+                    if (errorCount >= maxErrors) {
+                        status.textContent = "Too many errors. Redirecting to Instagram page...";
+                        window.location.href = fallbackURL;
+                    }
+                });
         });
     </script>
 </body>
