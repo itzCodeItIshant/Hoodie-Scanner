@@ -107,10 +107,54 @@
             chooseCamera(videoDevices[nextCameraIndex].deviceId);
         }
 
-        document.getElementById('captureButton').addEventListener('click', () => {
-            // Scan functionality here (using Tesseract.js or other methods)
-        });
+        function scan() {
+            const video = document.getElementById('camera');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
 
+            // Set canvas size equal to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw the current video frame onto the canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            status.textContent = "Processing the image...";
+
+            // Use Tesseract.js to recognize text from the canvas
+            Tesseract.recognize(
+                canvas.toDataURL(),
+                'eng',
+                {
+                    logger: (m) => console.log(m) // Optional: logs OCR progress
+                }
+            ).then(({ data: { text } }) => {
+                console.log('Extracted Text:', text);
+                status.textContent = `Extracted Text: ${text}`;
+
+                let foundURL = null;
+
+                // Check if the extracted text matches any name in the URL map
+                for (const [name, url] of Object.entries(nameToURL)) {
+                    if (text.toLowerCase().includes(name.toLowerCase())) {
+                        foundURL = url;
+                        break;
+                    }
+                }
+
+                if (foundURL) {
+                    status.textContent = `Name found! Redirecting to ${foundURL}`;
+                    window.location.href = foundURL;
+                } else {
+                    status.textContent = "Name not found. Try again.";
+                }
+            }).catch(error => {
+                status.textContent = "Error processing the image.";
+                console.error(error);
+            });
+        }
+
+        document.getElementById('captureButton').addEventListener('click', scan);
         document.getElementById('toggleCameraButton').addEventListener('click', toggleCamera);
 
         // Start by enumerating devices
