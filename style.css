@@ -45,3 +45,6 @@ p {
     font-size: 14px;
     color: #555;
 }
+#nameChoice {
+    display: none; /* Hide this initially */
+}
