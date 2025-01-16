@@ -40,7 +40,7 @@ function scanImage() {
         document.getElementById('recognition-result').textContent = "Recognized: " + recognizedName;
 
         if (recognizedName === "Atharv") {
-            document.getElementById('atharv-options').classList.remove('hidden');
+            document.getElementById('atharv-options').classList.remove('hidden');  // Show options if "Atharv" is recognized
         } else if (memberNames[recognizedName]) {
             window.location.href = memberNames[recognizedName];
         } else {
@@ -85,12 +85,6 @@ function setUpCamera() {
             console.error("Error accessing the camera: ", err);
             document.getElementById('recognition-result').textContent = "Unable to access camera.";
         });
-}
-
-// Function to switch between front and back camera
-function switchCamera() {
-    currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; // Toggle between user and environment
-    setUpCamera(); // Reinitialize the camera with the new facingMode
 }
 
 // Call the function to set up the camera initially
