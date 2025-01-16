@@ -36,9 +36,11 @@
     <h1>Hoodie Scanner</h1>
     <video id="camera" autoplay></video>
     <button id="captureButton">Scan</button>
+    <button id="toggleCameraButton">Toggle Camera</button>
     <p id="status">Point your camera at the hoodie and press "Scan".</p>
 
     <script>
+        // Mapping names to URLs
         const nameToURL = {
             "ISHANT": "https://instagram.com/ishant.1912",
             "Rahul": "https://clubpage.com/rahul",
@@ -50,44 +52,41 @@
             "Andhra": "https://instagram.com/andhra",
             // Add all 28 members here
         };
-    
-        const fallbackURL = "https://instagram.com/gdgcsspu";
-        let errorCount = 0;
-        const maxErrors = 5;
-        const video = document.getElementById("camera");
-        const status = document.getElementById("status");
-    
-        // Function to check if the user is on a mobile device
-        function isMobile() {
-            return /Mobi|Android/i.test(navigator.userAgent);
+
+        let currentStream = null;
+        let currentDeviceId = null;
+        let videoDevices = [];
+
+        function chooseCamera(deviceId) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop()); // Stop the current stream
+            }
+
+            navigator.mediaDevices.getUserMedia({
+                video: { deviceId: deviceId }
+            })
+            .then(stream => {
+                currentStream = stream;
+                currentDeviceId = deviceId;
+                const video = document.getElementById('camera');
+                video.srcObject = stream;
+                status.textContent = "Camera activated successfully.";
+            })
+            .catch(error => {
+                status.textContent = "Unable to access camera. Please check permissions.";
+                console.error("Error accessing camera:", error);
+            });
         }
-    
-        // Function to choose the camera based on device type (front camera for desktop, back camera for smartphones)
-        function chooseCamera() {
+
+        function enumerateDevices() {
             navigator.mediaDevices.enumerateDevices()
                 .then(devices => {
-                    let videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    console.log("Available video devices:", videoDevices); // Log all video devices
-        
-                    let selectedDeviceId = null;
-        
-                    // Desktop: Select the first available video device (no front/back distinction)
+                    videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    console.log("Available video devices:", videoDevices);
+
+                    // Set initial camera (default to the first available one)
                     if (videoDevices.length > 0) {
-                        selectedDeviceId = videoDevices[0].deviceId; // Select the first available camera
-                    }
-        
-                    if (selectedDeviceId) {
-                        navigator.mediaDevices.getUserMedia({
-                            video: { deviceId: selectedDeviceId }
-                        })
-                        .then(stream => {
-                            video.srcObject = stream;
-                            status.textContent = "Camera activated successfully.";
-                        })
-                        .catch(error => {
-                            status.textContent = "Unable to access camera. Please check permissions.";
-                            console.error("Error accessing camera:", error);
-                        });
+                        chooseCamera(videoDevices[0].deviceId);
                     } else {
                         status.textContent = "No suitable camera found.";
                     }
@@ -97,76 +96,25 @@
                     console.error("Error enumerating devices:", error);
                 });
         }
-        
-        function requestCameraPermission() {
-            navigator.mediaDevices.getUserMedia({ video: true })
-                .then(stream => {
-                    // If permission is granted, stop the stream immediately
-                    stream.getTracks().forEach(track => track.stop());
-                    chooseCamera(); // Proceed with selecting the camera
-                })
-                .catch(error => {
-                    status.textContent = "Camera permission is required.";
-                    console.error("Camera permission error:", error);
-                });
+
+        function toggleCamera() {
+            if (videoDevices.length < 2) {
+                status.textContent = "Only one camera available.";
+                return;
+            }
+
+            const nextCameraIndex = (videoDevices.findIndex(device => device.deviceId === currentDeviceId) + 1) % videoDevices.length;
+            chooseCamera(videoDevices[nextCameraIndex].deviceId);
         }
-        
-        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-            requestCameraPermission(); // Request camera permission on load
-        } else {
-            status.textContent = "Camera not supported in this browser.";
-        }
-        
-        chooseCamera();
-    
-        document.getElementById("captureButton").addEventListener("click", () => {
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext("2d");
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            status.textContent = "Processing the image...";
-    
-            Tesseract.recognize(
-                canvas.toDataURL(),
-                "eng",
-                {
-                    logger: (e) => console.log(e),
-                }
-            ).then(({ data: { text } }) => {
-                const recognizedText = text.trim().toLowerCase();
-                console.log("Extracted Text:", recognizedText);
-                let matchedURL = null;
-    
-                for (const [name, url] of Object.entries(nameToURL)) {
-                    if (recognizedText.includes(name.toLowerCase())) {
-                        matchedURL = url;
-                        break;
-                    }
-                }
-    
-                if (matchedURL) {
-                    errorCount = 0;
-                    status.textContent = "Name found! Redirecting...";
-                    window.location.href = matchedURL;
-                } else {
-                    errorCount++;
-                    status.textContent = `Name not found. Attempt ${errorCount}/${maxErrors}`;
-                    if (errorCount >= maxErrors) {
-                        status.textContent = "Too many errors. Redirecting to Instagram page...";
-                        window.location.href = fallbackURL;
-                    }
-                }
-            }).catch((error) => {
-                errorCount++;
-                status.textContent = `Error processing the image. Attempt ${errorCount}/${maxErrors}`;
-                console.error(error);
-                if (errorCount >= maxErrors) {
-                    status.textContent = "Too many errors. Redirecting...";
-                    window.location.href = fallbackURL;
-                }
-            });
+
+        document.getElementById('captureButton').addEventListener('click', () => {
+            // Scan functionality here (using Tesseract.js or other methods)
         });
+
+        document.getElementById('toggleCameraButton').addEventListener('click', toggleCamera);
+
+        // Start by enumerating devices
+        enumerateDevices();
     </script>
 </body>
 </html>
