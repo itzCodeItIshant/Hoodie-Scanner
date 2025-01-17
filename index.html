@@ -36,7 +36,7 @@
     <h1>Hoodie Scanner</h1>
     <video id="camera" autoplay></video>
     <button id="captureButton">Scan</button>
-    <button id="toggleCameraButton">Toggle Camera</button>
+    <button id="switchCameraButton">Switch Camera</button>
     <p id="status">Point your camera at the hoodie and press "Scan".</p>
 
     <script>
@@ -53,112 +53,101 @@
             // Add all 28 members here
         };
 
-        let currentStream = null;
+        let currentStream;
         let currentDeviceId = null;
-        let videoDevices = [];
 
-        function chooseCamera(deviceId) {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop()); // Stop the current stream
-            }
-
-            navigator.mediaDevices.getUserMedia({
-                video: { deviceId: deviceId }
-            })
-            .then(stream => {
-                currentStream = stream;
-                currentDeviceId = deviceId;
-                const video = document.getElementById('camera');
-                video.srcObject = stream;
-                status.textContent = "Camera activated successfully.";
-            })
-            .catch(error => {
-                status.textContent = "Unable to access camera. Please check permissions.";
-                console.error("Error accessing camera:", error);
-            });
-        }
-
-        function enumerateDevices() {
-            navigator.mediaDevices.enumerateDevices()
-                .then(devices => {
-                    videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    console.log("Available video devices:", videoDevices);
-
-                    // Set initial camera (default to the first available one)
-                    if (videoDevices.length > 0) {
-                        chooseCamera(videoDevices[0].deviceId);
-                    } else {
-                        status.textContent = "No suitable camera found.";
+        // Function to start the camera
+        function startCamera(deviceId = null) {
+            const constraints = {
+                video: {
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                }
+            };
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    if (currentStream) {
+                        currentStream.getTracks().forEach(track => track.stop()); // Stop the previous stream
                     }
+                    currentStream = stream;
+                    document.getElementById("camera").srcObject = stream;
                 })
-                .catch(error => {
-                    status.textContent = "Error accessing devices.";
-                    console.error("Error enumerating devices:", error);
+                .catch((err) => {
+                    console.error("Error accessing camera: ", err);
+                    document.getElementById("status").textContent = "Unable to access camera. Please check permissions.";
                 });
         }
 
-        function toggleCamera() {
-            if (videoDevices.length < 2) {
-                status.textContent = "Only one camera available.";
-                return;
-            }
-
-            const nextCameraIndex = (videoDevices.findIndex(device => device.deviceId === currentDeviceId) + 1) % videoDevices.length;
-            chooseCamera(videoDevices[nextCameraIndex].deviceId);
+        // Get all media devices and find the cameras
+        function getCameras() {
+            navigator.mediaDevices.enumerateDevices()
+                .then(devices => {
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    if (videoDevices.length > 0) {
+                        currentDeviceId = videoDevices[0].deviceId; // Set the initial camera (usually the front camera)
+                        startCamera(currentDeviceId);
+                    }
+                })
+                .catch(err => console.error("Error enumerating devices: ", err));
         }
 
-        function scan() {
-            const video = document.getElementById('camera');
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
+        // Switch between cameras
+        function switchCamera() {
+            navigator.mediaDevices.enumerateDevices()
+                .then(devices => {
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
+                    const nextIndex = (currentIndex + 1) % videoDevices.length; // Toggle to next camera
+                    currentDeviceId = videoDevices[nextIndex].deviceId;
+                    startCamera(currentDeviceId);
+                })
+                .catch(err => console.error("Error switching camera: ", err));
+        }
 
-            // Set canvas size equal to video size
+        // Initialize cameras
+        getCameras();
+
+        // Event listener for the switch camera button
+        document.getElementById("switchCameraButton").addEventListener("click", switchCamera);
+
+        // Other existing code (button for capture, OCR processing) remains unchanged
+        const captureButton = document.getElementById('captureButton');
+        const status = document.getElementById('status');
+
+        captureButton.addEventListener("click", () => {
+            const canvas = document.createElement("canvas");
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-
-            // Draw the current video frame onto the canvas
+            const context = canvas.getContext("2d");
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
             status.textContent = "Processing the image...";
 
-            // Use Tesseract.js to recognize text from the canvas
-            Tesseract.recognize(
-                canvas.toDataURL(),
-                'eng',
-                {
-                    logger: (m) => console.log(m) // Optional: logs OCR progress
-                }
-            ).then(({ data: { text } }) => {
-                console.log('Extracted Text:', text);
-                status.textContent = `Extracted Text: ${text}`;
+            Tesseract.recognize(canvas.toDataURL(), 'eng', {
+                logger: (info) => console.log(info)
+            })
+            .then(({ data: { text } }) => {
+                const recognizedText = text.trim().toUpperCase();
+                console.log("Extracted Text:", recognizedText);
 
-                let foundURL = null;
-
-                // Check if the extracted text matches any name in the URL map
+                let matchedURL = null;
                 for (const [name, url] of Object.entries(nameToURL)) {
-                    if (text.toLowerCase().includes(name.toLowerCase())) {
-                        foundURL = url;
+                    if (recognizedText.includes(name.toUpperCase())) {
+                        matchedURL = url;
                         break;
                     }
                 }
 
-                if (foundURL) {
-                    status.textContent = `Name found! Redirecting to ${foundURL}`;
-                    window.location.href = foundURL;
+                if (matchedURL) {
+                    status.textContent = "Name found! Redirecting...";
+                    window.location.href = matchedURL;
                 } else {
-                    status.textContent = "Name not found. Try again.";
+                    status.textContent = "Name not found. Please try again.";
                 }
-            }).catch(error => {
-                status.textContent = "Error processing the image.";
-                console.error(error);
+            })
+            .catch((error) => {
+                console.error("Error processing the image", error);
+                status.textContent = "Error processing the image. Try again.";
             });
-        }
-
-        document.getElementById('captureButton').addEventListener('click', scan);
-        document.getElementById('toggleCameraButton').addEventListener('click', toggleCamera);
-
-        // Start by enumerating devices
-        enumerateDevices();
+        });
     </script>
 </body>
 </html>
