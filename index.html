@@ -50,6 +50,7 @@
             "Atharv Mane": "https://clubpage.com/atharvmane",
             "HARDWORK": "https://instagram.com/hardwork",
             "Andhra": "https://instagram.com/andhra",
+            "Cello": "https://instagram.com/cello",
             // Add all 28 members here
         };
 
@@ -98,9 +99,12 @@
                     const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
                     const nextIndex = (currentIndex + 1) % videoDevices.length; // Toggle to next camera
                     currentDeviceId = videoDevices[nextIndex].deviceId;
-                    startCamera(currentDeviceId);
+                    startCamera(currentDeviceId); // Ensure the video element is updated
                 })
-                .catch(err => console.error("Error switching camera: ", err));
+                .catch(err => {
+                    console.error("Error switching camera: ", err);
+                    status.textContent = "Error switching camera.";
+                });
         }
 
         // Initialize cameras
@@ -111,23 +115,31 @@
 
         // Other existing code (button for capture, OCR processing) remains unchanged
         const captureButton = document.getElementById('captureButton');
+        const video = document.getElementById('camera'); // Ensure video is referenced
         const status = document.getElementById('status');
 
         captureButton.addEventListener("click", () => {
+            // Ensure the video element's properties are updated correctly
+            if (!video || !video.videoWidth || !video.videoHeight) {
+                status.textContent = "Camera not ready. Please try again.";
+                return;
+            }
+        
             const canvas = document.createElement("canvas");
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const context = canvas.getContext("2d");
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
             status.textContent = "Processing the image...";
-
+        
             Tesseract.recognize(canvas.toDataURL(), 'eng', {
                 logger: (info) => console.log(info)
             })
             .then(({ data: { text } }) => {
                 const recognizedText = text.trim().toUpperCase();
                 console.log("Extracted Text:", recognizedText);
-
+            
                 let matchedURL = null;
                 for (const [name, url] of Object.entries(nameToURL)) {
                     if (recognizedText.includes(name.toUpperCase())) {
@@ -135,7 +147,7 @@
                         break;
                     }
                 }
-
+            
                 if (matchedURL) {
                     status.textContent = "Name found! Redirecting...";
                     window.location.href = matchedURL;
