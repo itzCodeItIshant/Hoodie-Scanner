@@ -36,7 +36,6 @@
     <h1>Hoodie Scanner</h1>
     <video id="camera" autoplay></video>
     <button id="captureButton">Scan</button>
-    <button id="switchCameraButton">Switch Camera</button>
     <p id="status">Point your camera at the hoodie and press "Scan".</p>
 
     <script>
@@ -50,70 +49,43 @@
             "Atharv Mane": "https://clubpage.com/atharvmane",
             "HARDWORK": "https://instagram.com/hardwork",
             "Andhra": "https://instagram.com/andhra",
-            "Cello": "https://instagram.com/cello",
             // Add all 28 members here
         };
 
         let currentStream;
-        let currentDeviceId = null;
 
-        // Function to start the camera
-        function startCamera(deviceId = null) {
-            const constraints = {
-                video: {
-                    deviceId: deviceId ? { exact: deviceId } : undefined,
-                }
-            };
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then((stream) => {
-                    if (currentStream) {
-                        currentStream.getTracks().forEach(track => track.stop()); // Stop the previous stream
-                    }
-                    currentStream = stream;
-                    document.getElementById("camera").srcObject = stream;
-                })
-                .catch((err) => {
-                    console.error("Error accessing camera: ", err);
-                    document.getElementById("status").textContent = "Unable to access camera. Please check permissions.";
-                });
-        }
-
-        // Get all media devices and find the cameras
-        function getCameras() {
+        // Function to start the back camera
+        function startBackCamera() {
             navigator.mediaDevices.enumerateDevices()
                 .then(devices => {
                     const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    if (videoDevices.length > 0) {
-                        currentDeviceId = videoDevices[0].deviceId; // Set the initial camera (usually the front camera)
-                        startCamera(currentDeviceId);
-                    }
+                    // Choose the back camera (usually the second camera in the list)
+                    const backCamera = videoDevices.find(device => device.label.toLowerCase().includes("back")) || videoDevices[0];
+
+                    const constraints = {
+                        video: {
+                            deviceId: backCamera.deviceId
+                        }
+                    };
+                    navigator.mediaDevices.getUserMedia(constraints)
+                        .then((stream) => {
+                            if (currentStream) {
+                                currentStream.getTracks().forEach(track => track.stop()); // Stop the previous stream
+                            }
+                            currentStream = stream;
+                            document.getElementById("camera").srcObject = stream;
+                        })
+                        .catch((err) => {
+                            console.error("Error accessing camera: ", err);
+                            document.getElementById("status").textContent = "Unable to access camera. Please check permissions.";
+                        });
                 })
                 .catch(err => console.error("Error enumerating devices: ", err));
         }
 
-        // Switch between cameras
-        function switchCamera() {
-            navigator.mediaDevices.enumerateDevices()
-                .then(devices => {
-                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                    const currentIndex = videoDevices.findIndex(device => device.deviceId === currentDeviceId);
-                    const nextIndex = (currentIndex + 1) % videoDevices.length; // Toggle to next camera
-                    currentDeviceId = videoDevices[nextIndex].deviceId;
-                    startCamera(currentDeviceId); // Ensure the video element is updated
-                })
-                .catch(err => {
-                    console.error("Error switching camera: ", err);
-                    status.textContent = "Error switching camera.";
-                });
-        }
+        // Start the back camera when the page loads
+        startBackCamera();
 
-        // Initialize cameras
-        getCameras();
-
-        // Event listener for the switch camera button
-        document.getElementById("switchCameraButton").addEventListener("click", switchCamera);
-
-        // Other existing code (button for capture, OCR processing) remains unchanged
         const captureButton = document.getElementById('captureButton');
         const video = document.getElementById('camera'); // Ensure video is referenced
         const status = document.getElementById('status');
@@ -124,22 +96,22 @@
                 status.textContent = "Camera not ready. Please try again.";
                 return;
             }
-        
+
             const canvas = document.createElement("canvas");
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const context = canvas.getContext("2d");
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+
             status.textContent = "Processing the image...";
-        
+
             Tesseract.recognize(canvas.toDataURL(), 'eng', {
                 logger: (info) => console.log(info)
             })
             .then(({ data: { text } }) => {
                 const recognizedText = text.trim().toUpperCase();
                 console.log("Extracted Text:", recognizedText);
-            
+
                 let matchedURL = null;
                 for (const [name, url] of Object.entries(nameToURL)) {
                     if (recognizedText.includes(name.toUpperCase())) {
@@ -147,7 +119,7 @@
                         break;
                     }
                 }
-            
+
                 if (matchedURL) {
                     status.textContent = "Name found! Redirecting...";
                     window.location.href = matchedURL;
